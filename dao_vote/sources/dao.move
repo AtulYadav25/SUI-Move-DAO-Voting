@@ -1,0 +1,203 @@
+module dao_voting::dao;
+
+use sui::table::{Self, Table};
+use std::string::String;
+use sui::event;
+
+//ERROR CODES
+
+const E_NOT_OWNER:u64 = 100;
+const E_ALREADY_JOINED_DAO:u64 = 200;
+const E_ALREADY_MEMBER:u64 = 300;
+const E_NOT_ADMIN:u64 = 400;
+const E_NOT_MEMBER:u64 = 500;
+const EADMIN_NOT_FOUND:u64 = 600;
+
+//DAO Struct
+public struct DAO has key {
+    id: UID,
+    name: String,
+    description: String,
+    admins: Table<address, bool>,
+    members: Table<address, bool>,
+    proposals: Table<ID, bool>,
+}
+
+public struct DAOCap has key {
+    id: UID,
+    dao_id: ID
+}
+
+public struct ADMINCap has key {
+    id: UID,
+    dao_id: ID
+}
+
+//Events
+public struct MemberJoinedEvent has copy, drop {
+    member: address,
+    dao_id: ID,
+}
+
+public struct AdminAddedEvent has copy, drop {
+    admin: address,
+    dao_id: ID,
+}
+
+public struct AdminRemovedEvent has copy, drop {
+    admin: address,
+    dao_id: ID,
+}
+
+public struct DaoNewOwnerEvent has copy, drop {
+    new_owner: address,
+    dao_id: ID,
+}
+
+public fun create_dao(
+    name: String,
+    description: String,
+    ctx: &mut TxContext,
+) {
+    let owner = tx_context::sender(ctx);
+
+    //Listing Admins
+    let admins = table::new<address, bool>(ctx);
+
+    //Listing Members
+    let members = table::new<address, bool>(ctx);
+
+    let proposals = table::new<ID, bool>(ctx);
+
+    let dao = DAO {
+        id: object::new(ctx),
+        name,
+        description,
+        admins,
+        members,
+        proposals,
+    };
+
+    // Create the DAO capability for creator
+    let cap = DAOCap {
+        id: object::new(ctx),
+        dao_id: object::uid_to_inner(&dao.id),
+    };
+
+    // Share DAO
+    transfer::share_object(dao);
+
+    // Give DAO capability to creator
+    transfer::transfer(cap, owner);
+}
+
+
+
+//Access Helpers Function
+
+//Only Admin Validation
+public fun assert_owner(dao: &DAO, dao_cap: &DAOCap) {
+    assert!(&object::uid_to_inner(&dao.id) == &dao_cap.dao_id, E_NOT_OWNER);
+}
+
+public fun assert_admin(dao: &DAO, admin_cap: &ADMINCap, admin: address) {
+    assert!(&object::uid_to_inner(&dao.id) == admin_cap.dao_id, E_NOT_OWNER);
+
+    let is_admin = table::contains(&dao.admins, admin);
+    assert!(is_admin, E_NOT_ADMIN);
+}
+
+public fun assert_member(dao: &DAO, member: address) {
+    let is_member = table::contains(&dao.members, member);
+    assert!(is_member, E_NOT_MEMBER);
+}
+
+
+//Member Functions
+public fun join_dao(dao: &mut DAO, ctx: &mut TxContext) {
+    let sender = tx_context::sender(ctx);
+
+    //Check if already joined
+    let has_joined = table::contains(&dao.members, sender);
+    assert!(!has_joined, E_ALREADY_JOINED_DAO);
+
+    table::add(&mut dao.members, sender, true);
+
+    event::emit(MemberJoinedEvent {
+        member: sender,
+        dao_id: object::uid_to_inner(&dao.id),
+    });
+}
+
+
+
+
+//Admin Management Functions (Only Owner Can Call)
+public fun add_admin(dao: &mut DAO, dao_cap: &DAOCap , admin: address, ctx: &mut TxContext) {
+    //Check owner
+    assert_owner(dao, dao_cap);
+
+    //Check if member already exists
+    let has_joined = table::contains(&dao.admins, admin);
+    assert!(!has_joined, E_ALREADY_MEMBER);
+
+    table::add(&mut dao.admins, admin, true);
+    table::add(&mut dao.members, admin, true);
+
+    let admin_cap = ADMINCap {
+        id: object::new(ctx),
+        dao_id: object::uid_to_inner(&dao.id),
+    };
+
+    transfer::transfer(admin_cap, admin);
+
+    event::emit(AdminAddedEvent {
+        admin: admin,
+        dao_id: object::uid_to_inner(&dao.id),
+    })
+}
+
+public fun remove_admin(dao: &mut DAO, dao_cap: &DAOCap, admin: address) {
+    //Check owner
+    assert_owner(dao, dao_cap);
+
+    assert!(
+        table::contains(&dao.admins, admin),
+        EADMIN_NOT_FOUND
+    );
+
+    table::remove(&mut dao.admins, admin);
+    table::remove(&mut dao.members, admin);
+
+    event::emit(AdminRemovedEvent {
+        admin: admin,
+        dao_id: object::uid_to_inner(&dao.id),
+    })
+}
+
+public fun transfer_dao_ownership(
+    dao: &mut DAO,
+    dao_cap: DAOCap,
+    new_owner: address
+) {
+    assert_owner(dao, &dao_cap);
+
+    transfer::transfer(dao_cap, new_owner);
+
+    event::emit(DaoNewOwnerEvent {
+        new_owner,
+        dao_id: object::uid_to_inner(&dao.id),
+    });
+}
+
+
+
+
+
+//Proposal Registery 
+
+public(package) fun add_proposal(dao: &mut DAO, proposal_id: ID) {
+    //Add Proposal To DAO Proposals
+    table::add(&mut dao.proposals, proposal_id, true);
+}
+

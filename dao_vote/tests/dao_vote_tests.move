@@ -1,0 +1,153 @@
+#[test_only]
+module dao_voting::dao_tests;
+
+use dao_voting::dao::{Self, DAO, DAOCap};
+use std::string;
+use sui::test_scenario;
+
+#[test]
+fun test_create_dao() {
+    let owner = @0xA;
+
+    let mut scenario = test_scenario::begin(owner);
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let ctx = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx,
+    );
+
+    test_scenario::end(scenario);
+}
+
+#[test]
+fun test_add_and_remove_admin() {
+    let owner = @0xA;
+
+    let mut scenario = test_scenario::begin(owner);
+
+    // --- Transaction 1: Create the DAO ---
+    test_scenario::next_tx(&mut scenario, owner);
+    let ctx1 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx1,
+    );
+
+    // --- Transaction 2: Load the DAO and mutate it ---
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
+    let daoCap_object = test_scenario::take_from_address<DAOCap>(&scenario, owner);
+
+    let ctx2 = test_scenario::ctx(&mut scenario);
+
+    let newAdmin = @0xB;
+
+    dao::add_admin(
+        &mut dao_object,
+        &daoCap_object,
+        newAdmin,
+        ctx2,
+    );
+
+    // Return objects
+    test_scenario::return_shared(dao_object);
+    test_scenario::return_to_address(owner, daoCap_object);
+
+    // --- Transaction 3: Load the DAO and mutate it ---
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
+    let daoCap_object = test_scenario::take_from_address<DAOCap>(&scenario, owner);
+
+    dao::remove_admin(
+        &mut dao_object,
+        &daoCap_object,
+        newAdmin,
+    );
+
+    // Return objects
+    test_scenario::return_shared(dao_object);
+    test_scenario::return_to_address(owner, daoCap_object);
+
+    test_scenario::end(scenario);
+}
+
+#[test]
+
+fun test_transfer_dao_ownership() {
+    let owner = @0xA;
+
+    let mut scenario = test_scenario::begin(owner);
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let ctx = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx,
+    );
+
+    // --- Transaction 2: Getting Objects from inventory of global and account
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
+    let daoCap_object = test_scenario::take_from_address<DAOCap>(&scenario, owner);
+
+    let newOwner = @0xB;
+    dao::transfer_dao_ownership(
+        &mut dao_object,
+        daoCap_object,
+        newOwner,
+    );
+
+    // Return objects
+    test_scenario::return_shared(dao_object);
+
+    test_scenario::end(scenario);
+}
+
+
+
+#[test]
+fun test_join_dao() {
+    let owner = @0xA;
+
+    let mut scenario = test_scenario::begin(owner);
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let ctx = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx,
+    );
+
+    //New Transaction
+    let new_member = @0xB;
+    test_scenario::next_tx(&mut scenario, new_member);
+
+    let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
+    let ctx2 = test_scenario::ctx(&mut scenario);
+
+    dao::join_dao(
+        &mut dao_object,
+        ctx2,
+    );
+
+    // Return objects
+    test_scenario::return_shared(dao_object);
+
+    test_scenario::end(scenario);
+}

@@ -1,0 +1,7 @@
+[package]
+name = "dao_voting"
+version = "0.0.1"
+edition = "2024"
+
+[addresses]
+dao_voting = "0x0"
