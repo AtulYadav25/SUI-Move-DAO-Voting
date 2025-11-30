@@ -13,7 +13,12 @@ const E_NOT_ADMIN:u64 = 400;
 const E_NOT_MEMBER:u64 = 500;
 const EADMIN_NOT_FOUND:u64 = 600;
 
-//DAO Struct
+//Structs
+public struct DAOList has key {
+    id: UID,
+    dao_list: vector<ID>,
+}
+
 public struct DAO has key {
     id: UID,
     name: String,
@@ -55,10 +60,11 @@ public struct DaoNewOwnerEvent has copy, drop {
 }
 
 public fun create_dao(
+    dao_list: &mut DAOList,
     name: String,
     description: String,
     ctx: &mut TxContext,
-) {
+): ID {
     let owner = tx_context::sender(ctx);
 
     //Listing Admins
@@ -78,10 +84,14 @@ public fun create_dao(
         proposals,
     };
 
+    let dao_id = object::uid_to_inner(&dao.id);
+
+    vector::push_back(&mut dao_list.dao_list, dao_id);  
+
     // Create the DAO capability for creator
     let cap = DAOCap {
         id: object::new(ctx),
-        dao_id: object::uid_to_inner(&dao.id),
+        dao_id,
     };
 
     // Share DAO
@@ -89,6 +99,8 @@ public fun create_dao(
 
     // Give DAO capability to creator
     transfer::transfer(cap, owner);
+
+    dao_id
 }
 
 
@@ -195,9 +207,19 @@ public fun transfer_dao_ownership(
 
 
 //Proposal Registery 
-
 public(package) fun add_proposal(dao: &mut DAO, proposal_id: ID) {
     //Add Proposal To DAO Proposals
     table::add(&mut dao.proposals, proposal_id, true);
 }
 
+
+
+//One Time Call Function
+public fun create_dao_list(ctx: &mut TxContext) {
+    let dao_list = DAOList {
+        id: object::new(ctx),
+        dao_list: vector::empty<ID>(),
+    };
+
+    transfer::share_object(dao_list);
+}

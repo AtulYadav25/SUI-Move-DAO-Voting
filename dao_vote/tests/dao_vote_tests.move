@@ -1,9 +1,26 @@
 #[test_only]
 module dao_voting::dao_tests;
 
-use dao_voting::dao::{Self, DAO, DAOCap};
+use dao_voting::dao::{Self, DAO, DAOCap, DAOList};
 use std::string;
 use sui::test_scenario;
+
+#[test]
+fun test_create_dao_list() {
+    let owner = @0xA;
+
+    let mut scenario = test_scenario::begin(owner);
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let ctx = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao_list(
+        ctx,
+    );
+
+    test_scenario::end(scenario);
+}
 
 #[test]
 fun test_create_dao() {
@@ -13,14 +30,25 @@ fun test_create_dao() {
 
     test_scenario::next_tx(&mut scenario, owner);
 
-    let ctx = test_scenario::ctx(&mut scenario);
+    let ctx01 = test_scenario::ctx(&mut scenario);
 
-    dao::create_dao(
-        string::utf8(b"My DAO"),
-        string::utf8(b"This is a test"),
-        ctx,
+    dao::create_dao_list(
+        ctx01,
     );
 
+    test_scenario::next_tx(&mut scenario, owner);
+
+    let mut daoList_object = test_scenario::take_shared<DAOList>(&scenario);
+    let ctx1 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        &mut daoList_object,
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx1,
+    );
+
+    test_scenario::return_shared(daoList_object);
     test_scenario::end(scenario);
 }
 
@@ -30,16 +58,28 @@ fun test_add_and_remove_admin() {
 
     let mut scenario = test_scenario::begin(owner);
 
-    // --- Transaction 1: Create the DAO ---
     test_scenario::next_tx(&mut scenario, owner);
+    //Transaction 00
+    let ctx01 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao_list(
+        ctx01,
+    );
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    // --- Transaction 01: Create the DAO ---
+    let mut daoList_object = test_scenario::take_shared<DAOList>(&scenario);
     let ctx1 = test_scenario::ctx(&mut scenario);
 
     dao::create_dao(
+        &mut daoList_object,
         string::utf8(b"My DAO"),
         string::utf8(b"This is a test"),
         ctx1,
     );
 
+    test_scenario::return_shared(daoList_object);
     // --- Transaction 2: Load the DAO and mutate it ---
     test_scenario::next_tx(&mut scenario, owner);
 
@@ -88,15 +128,27 @@ fun test_transfer_dao_ownership() {
     let mut scenario = test_scenario::begin(owner);
 
     test_scenario::next_tx(&mut scenario, owner);
+    //Transaction 00
+    let ctx01 = test_scenario::ctx(&mut scenario);
 
-    let ctx = test_scenario::ctx(&mut scenario);
-
-    dao::create_dao(
-        string::utf8(b"My DAO"),
-        string::utf8(b"This is a test"),
-        ctx,
+    dao::create_dao_list(
+        ctx01,
     );
 
+    test_scenario::next_tx(&mut scenario, owner);
+
+    // --- Transaction 01: Create the DAO ---
+    let mut daoList_object = test_scenario::take_shared<DAOList>(&scenario);
+    let ctx1 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        &mut daoList_object,
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx1,
+    );
+    
+    test_scenario::return_shared(daoList_object);
     // --- Transaction 2: Getting Objects from inventory of global and account
     test_scenario::next_tx(&mut scenario, owner);
 
@@ -116,8 +168,6 @@ fun test_transfer_dao_ownership() {
     test_scenario::end(scenario);
 }
 
-
-
 #[test]
 fun test_join_dao() {
     let owner = @0xA;
@@ -125,15 +175,27 @@ fun test_join_dao() {
     let mut scenario = test_scenario::begin(owner);
 
     test_scenario::next_tx(&mut scenario, owner);
+    //Transaction 00
+    let ctx01 = test_scenario::ctx(&mut scenario);
 
-    let ctx = test_scenario::ctx(&mut scenario);
-
-    dao::create_dao(
-        string::utf8(b"My DAO"),
-        string::utf8(b"This is a test"),
-        ctx,
+    dao::create_dao_list(
+        ctx01,
     );
 
+    test_scenario::next_tx(&mut scenario, owner);
+
+    // --- Transaction 01: Create the DAO ---
+    let mut daoList_object = test_scenario::take_shared<DAOList>(&scenario);
+    let ctx1 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao(
+        &mut daoList_object,
+        string::utf8(b"My DAO"),
+        string::utf8(b"This is a test"),
+        ctx1,
+    );
+    
+    test_scenario::return_shared(daoList_object);
     //New Transaction
     let new_member = @0xB;
     test_scenario::next_tx(&mut scenario, new_member);

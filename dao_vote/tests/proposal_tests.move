@@ -1,30 +1,41 @@
 #[test_only]
 module dao_voting::proposal_tests;
 
-use dao_voting::dao::{Self, DAO, DAOCap, ADMINCap};
+use dao_voting::dao::{Self, DAO, DAOCap, ADMINCap, DAOList};
 use dao_voting::proposal::{Self, Proposal};
 use std::string;
-use sui::test_scenario;
 use sui::clock;
-use sui::clock::set_for_testing;
-
+use sui::test_scenario;
 
 #[test]
 fun test_create_proposal() {
-     let owner = @0xA;
+    let owner = @0xA;
 
     let mut scenario = test_scenario::begin(owner);
 
     // --- Transaction 1: Create the DAO ---
     test_scenario::next_tx(&mut scenario, owner);
+    //Transaction 00
+    let ctx01 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao_list(
+        ctx01,
+    );
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    // --- Transaction 01: Create the DAO ---
+    let mut daoList_object = test_scenario::take_shared<DAOList>(&scenario);
     let ctx1 = test_scenario::ctx(&mut scenario);
 
     dao::create_dao(
+        &mut daoList_object,
         string::utf8(b"My DAO"),
         string::utf8(b"This is a test"),
         ctx1,
     );
 
+    test_scenario::return_shared(daoList_object);
     // --- Transaction 2: Add Admin (Myself)
     test_scenario::next_tx(&mut scenario, owner);
 
@@ -64,28 +75,39 @@ fun test_create_proposal() {
     // Return objects
     test_scenario::return_shared(dao_object);
     test_scenario::return_to_address(newAdmin, adminCap_object);
-
 
     test_scenario::end(scenario);
 }
 
-
 #[test]
 fun test_vote_proposal() {
-     let owner = @0xA;
+    let owner = @0xA;
 
     let mut scenario = test_scenario::begin(owner);
 
     // --- Transaction 1: Create the DAO ---
     test_scenario::next_tx(&mut scenario, owner);
+    //Transaction 00
+    let ctx01 = test_scenario::ctx(&mut scenario);
+
+    dao::create_dao_list(
+        ctx01,
+    );
+
+    test_scenario::next_tx(&mut scenario, owner);
+
+    // --- Transaction 01: Create the DAO ---
+    let mut daoList_object = test_scenario::take_shared<DAOList>(&scenario);
     let ctx1 = test_scenario::ctx(&mut scenario);
 
     dao::create_dao(
+        &mut daoList_object,
         string::utf8(b"My DAO"),
         string::utf8(b"This is a test"),
         ctx1,
     );
 
+    test_scenario::return_shared(daoList_object);
     // --- Transaction 2: Add Admin (Myself)
     test_scenario::next_tx(&mut scenario, owner);
 
@@ -125,8 +147,6 @@ fun test_vote_proposal() {
     // Return objects
     test_scenario::return_shared(dao_object);
     test_scenario::return_to_address(newAdmin, adminCap_object);
-
-
 
     // --- Transaction 4:
     test_scenario::next_tx(&mut scenario, newAdmin);
@@ -164,7 +184,7 @@ fun test_vote_proposal() {
     test_scenario::next_tx(&mut scenario, newMember);
     let dao_object = test_scenario::take_shared<DAO>(&scenario);
     let mut proposal_object = test_scenario::take_shared<Proposal>(&scenario);
-    
+
     let ctx6 = test_scenario::ctx(&mut scenario);
     let mut clock = clock::create_for_testing(ctx6);
 
@@ -175,9 +195,9 @@ fun test_vote_proposal() {
         &mut proposal_object,
         true,
         &clock,
-        ctx6
+        ctx6,
     );
-    
+
     // Return objects
     test_scenario::return_shared(dao_object);
     test_scenario::return_shared(proposal_object);
@@ -185,4 +205,3 @@ fun test_vote_proposal() {
 
     test_scenario::end(scenario);
 }
-
