@@ -24,6 +24,8 @@ interface AppContextType {
   addMember: (daoId: string, address: string, role: 'ADMIN' | 'MEMBER') => Promise<void>;
   removeMember: (daoId: string, address: string) => Promise<void>;
   updateMemberRole: (daoId: string, address: string, role: 'ADMIN' | 'MEMBER') => Promise<void>;
+  fetchTableObject: (tableId: string) => Promise<void>;
+  fetchDAO: (daoIds: string[]) => Promise<DAO[]>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -33,7 +35,7 @@ const MOCK_USER_ADDRESS = "0x71C...9A23";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const account = useCurrentAccount();
-  const [daos, setDaos] = useState<DAOFields[]>([]);
+  const [daos, setDaos] = useState<DAO[]>([]);
 
   //SUI Query Functions
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
@@ -55,7 +57,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         fetchInitialDaos(content.fields.dao_list);
-        console.log("Fetched DAO List:", content.fields.dao_list);
 
       } catch (error) {
         console.error("Error fetching DAO List:", error);
@@ -70,8 +71,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         options: { showContent: true },
       });
 
-      const fetchedDaos: DAOFields[] = [];
-      console.log("Fetching Initial Daos");
+      const fetchedDaos: DAO[] = [];
 
       for (const txn of txns) {
         const content = txn.data?.content;
@@ -80,23 +80,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.warn("Skipping invalid DAO object:", txn);
           continue;
         }
-        console.log(content.fields)
 
-        let fields: DAOFields = content.fields
-        console.log("DAO Fields:", fields);
+        let fields: DAOFields = content.fields;
+
+        let admins = await fetchTableObject(fields.admins.fields.id.id);
+        let members = await fetchTableObject(fields.members.fields.id.id);
+        let proposals = await fetchTableObject(fields.proposals.fields.id.id);
         // Transform Move object fields to DAO type
-        const dao: DAOFields = {
-          id: fields.id,
-          name: fields.name,
+        const dao = {
+          id: fields.id.id,
+          title: fields.name,
           description: fields.description,
-          admins: fields.admins,
-          members: fields.members,
-          proposals: fields.proposals,
+          daoStates: {
+            admins,
+            members,
+            proposals,
+          }
         };
 
         fetchedDaos.push(dao);
       }
-      console.log(fetchedDaos)
 
       setDaos(fetchedDaos);
     };
@@ -106,6 +109,81 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
 
+  //Fetch DAO from Blockchain and push to dao state 
+  const fetchDAO = async (daoId: string) => {
+    try {
+      const txn = await client.getObject({
+        id: daoId,
+        options: { showContent: true },
+      });
+
+      const content = txn.data?.content;
+
+      if (!isMoveObject<DAOFields>(content)) {
+        console.warn("Invalid DAO object:", txn);
+        return null;
+      }
+
+      const fields = content.fields;
+
+      // 2. Fetch dynamic table data (admins, members, proposals)
+      const admins = await fetchTableObject(fields.admins.fields.id.id);
+      const members = await fetchTableObject(fields.members.fields.id.id);
+      const proposals = await fetchTableObject(fields.proposals.fields.id.id);
+
+      // 3. Transform into DAO model
+      const dao: DAO = {
+        id: fields.id.id,
+        title: fields.name,
+        description: fields.description,
+        daoStates: {
+          admins,
+          members,
+          proposals,
+        }
+      };
+
+      // push or update the DAO inside state
+      setDaos((prevDaos) => {
+        const index = prevDaos.findIndex((d) => d.id === dao.id);
+
+        // If not found → push new
+        if (index === -1) {
+          return [...prevDaos, dao];
+        }
+
+        // If found → update
+        const updated = [...prevDaos];
+        updated[index] = dao;
+        return updated;
+      });
+
+    } catch (error) {
+      console.error("Error fetching DAO:", error);
+    }
+  };
+
+
+  //Fetch DAO from Blockchain and push to dao state 
+  const fetchTableObject = async (tableId: string): Promise<string[]> => {
+    try {
+      const txn = await client.getDynamicFields({
+        parentId: tableId,
+      });
+
+      // txn.data = array of dynamic field objects
+      const addresses = txn.data.map(item => item.name.value as string);
+
+
+      return addresses;   // <-- array of address strings
+    } catch (error) {
+      console.error("Error fetching table:", error);
+      return [];
+    }
+  };
+
+
+
 
   const createDao = async (name: string, description: string) => {
     // fetch shared object info
@@ -113,7 +191,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: DAO_LIST_ID,
       options: { showOwner: true },
     });
-    
+
     const sharedOwner = (daoListObj.data!.owner as any).Shared;
 
     const tx = new Transaction();
@@ -123,7 +201,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       arguments: [
         tx.sharedObjectRef({
           objectId: DAO_LIST_ID,
-          initialSharedVersion: sharedOwner.initial_shared_version, 
+          initialSharedVersion: sharedOwner.initial_shared_version,
           mutable: true,
         }),
         tx.pure.string(name),
@@ -131,26 +209,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ],
     });
 
-    const result = await signAndExecuteTransaction({ transaction: tx });
-    console.log("create_dao result:", result);
+    const result = await signAndExecuteTransaction({ transaction: tx },
+        {
+          onSuccess: () => {
+            toast.success("Created DAO successfully!");
+          },
+        },);
+
   };
 
 
   const joinDao = async (daoId: string) => {
-    await mockDelay(1000);
-    setDaos(prev => prev.map(d => {
-      if (d.id === daoId) {
-        // Check if already member
-        if (d.members.find(m => m.address === MOCK_USER_ADDRESS)) return d;
-        return {
-          ...d,
-          members: [...d.members, { address: MOCK_USER_ADDRESS, role: 'MEMBER' }]
-        };
-      }
-      return d;
-    }));
-    toast.success("Joined DAO successfully!");
+    try {
+      // 1. Fetch DAO object to get shared owner + version
+      const daoObj = await client.getObject({
+        id: daoId,
+        options: { showOwner: true },
+      });
+
+      const sharedOwner = (daoObj.data!.owner as any).Shared;
+
+      // 2. Create transaction
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${SMART_CONTRACT}::dao::join_dao`,
+        arguments: [
+          tx.sharedObjectRef({
+            objectId: daoId,
+            initialSharedVersion: sharedOwner.initial_shared_version,
+            mutable: true,
+          }),
+        ],
+      });
+
+      // 3. Sign and execute
+      const result = await signAndExecuteTransaction(
+        { 
+          transaction: tx
+        },
+        {
+          onSuccess: () => {
+            toast.success("Joined DAO successfully!");
+          },
+        },
+      )
+
+    } catch (err) {
+      console.error("join_dao error:", err);
+      toast.error("Failed to join DAO");
+    }
   };
+
 
   const createProposal = async (daoId: string, title: string, description: string) => {
     await mockDelay(1500);
@@ -278,7 +388,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addMember,
       removeMember,
       updateMemberRole,
-      fetchDAOs
+      fetchDAO,
     }}>
       {children}
     </AppContext.Provider>

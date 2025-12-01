@@ -54,7 +54,6 @@ export interface DAOFields {
     };
     name: string;
     description: string;
-
     admins: MoveTable;      // Table<address, bool>
     members: MoveTable;     // Table<address, bool>
     proposals: MoveTable;   // Table<ID, bool>

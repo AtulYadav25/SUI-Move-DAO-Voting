@@ -10,18 +10,10 @@ import { motion } from 'framer-motion';
 
 export const Home = () => {
   const navigate = useNavigate();
-  const { daos, fetchDAOs } = useApp();
-  const [loading, setLoading] = useState(true);
+  const { daos } = useApp();
+  const [loading, setLoading] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  useEffect(() => {
-    // Simulate fetch
-   //  fetchDAOs("Somethign");
-    const timer = setTimeout(() => {
-        setLoading(false);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleCreateClick = () => {
       setShowCreateDialog(true);

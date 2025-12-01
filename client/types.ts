@@ -21,9 +21,13 @@ export interface DAO {
   id: string;
   title: string;
   description: string;
-  members: Member[];
-  proposals: Proposal[];
-  owner: string; // Wallet address of creator
+  daoStates: DAOStates
+}
+
+export interface DAOStates {
+  members: string[],
+  proposals: string[],
+  admins: string[],
 }
 
 export interface User {

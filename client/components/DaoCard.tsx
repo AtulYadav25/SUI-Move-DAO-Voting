@@ -34,11 +34,11 @@ export const DaoCard: React.FC<DaoCardProps> = ({ dao }) => {
       <div className="mb-4">
         <div className="flex items-start justify-between">
            <h3 className="font-heading text-lg font-semibold text-zinc-50 line-clamp-1" title={dao.title}>
-              {dao.name}
+              {dao.title}
            </h3>
            <div className="flex items-center gap-1 text-xs text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full">
               <Users className="h-3 w-3" />
-              <span>{dao.members.length || 0}</span>
+              <span>{dao.daoStates.members?.length || 0}</span>
            </div>
         </div>
         <p className="mt-2 text-sm text-zinc-400 line-clamp-2 min-h-[40px]">
@@ -51,7 +51,7 @@ export const DaoCard: React.FC<DaoCardProps> = ({ dao }) => {
            onClick={handleCopy}
            className="flex w-fit cursor-pointer items-center gap-2 rounded-md bg-zinc-950/50 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
          >
-            <span>DAO_ID: {dao.id.id.slice(0, 6)}...{dao.id.id.slice(-4)}</span>
+            <span>DAO_ID: {dao.id.slice(0, 6)}...{dao.id.slice(-4)}</span>
             <Copy className="h-3 w-3" />
          </div>
 
@@ -59,7 +59,7 @@ export const DaoCard: React.FC<DaoCardProps> = ({ dao }) => {
             <Button variant="secondary" size="sm" className="w-full" onClick={handleJoin}>
                Join
             </Button>
-            <Button variant="outline" size="sm" className="w-full gap-1 group-hover:bg-zinc-100 group-hover:text-zinc-900 transition-all" onClick={() => navigate(`/dao/${dao.id}`)}>
+            <Button variant="outline" size="sm" className="w-full gap-1 group-hover:bg-zinc-100 group-hover:text-zinc-900 transition-all" onClick={(e) => {e.preventDefault(); navigate(`/dao/${dao.id}`)}}>
                View
                <ArrowRight className="h-3 w-3" />
             </Button>
