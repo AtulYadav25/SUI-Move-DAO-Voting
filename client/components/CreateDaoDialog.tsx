@@ -24,42 +24,9 @@ export const CreateDaoDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         return;
     }
     setLoading(true);
-    const toastId = toast.loading("Creating DAO...");
     
     try {
-        const newId = await createDao(title, desc);
-        toast.dismiss(toastId);
-        
-        // Custom success toast with button
-        toast.custom((t) => (
-            <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-zinc-900 border border-zinc-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}>
-            <div className="flex-1 w-0 p-4">
-                <div className="flex items-start">
-                <div className="ml-3 flex-1">
-                    <p className="text-sm font-medium text-zinc-100">
-                    DAO Created Successfully
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-500">
-                    {title} is now live.
-                    </p>
-                </div>
-                </div>
-            </div>
-            <div className="flex border-l border-zinc-800">
-                <button
-                onClick={() => {
-                    toast.dismiss(t.id);
-                    onClose();
-                    navigate(`/dao/${newId}`);
-                }}
-                className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-blue-400 hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                Open
-                </button>
-            </div>
-            </div>
-        ), { duration: 5000 });
-
+        await createDao(title, desc);
         setTitle('');
         setDesc('');
         onClose();

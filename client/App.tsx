@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { ExploreDaos } from './pages/ExploreDaos';
 import { DaoDetails } from './pages/DaoDetails';
 import { MyDaos } from './pages/MyDaos';
+import LoadingScreen from './components/LoadingScreen';
 
 
 const App = () => {
@@ -15,6 +16,7 @@ const App = () => {
     <AppProvider>
       <Router>
         <div className="flex flex-col min-h-screen bg-zinc-950 text-zinc-50 selection:bg-blue-500/30">
+            <LoadingScreen />
            <Navbar />
            <main className="flex-grow">
               <Routes>

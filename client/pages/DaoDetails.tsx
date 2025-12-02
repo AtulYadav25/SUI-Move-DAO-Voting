@@ -10,19 +10,18 @@ import { Skeleton } from '../components/Skeleton';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { truncateAddress } from '../utils';
-import { DAOStates, Member } from '../types';
 import { useCurrentAccount } from '@mysten/dapp-kit';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 
 
 export const DaoDetails = () => {
     const { daoId } = useParams<{ daoId: string }>();
-    const { daos, joinDao, createProposal, addMember, removeMember, updateMemberRole, connectWallet, fetchDAO } = useApp();
+    const { loading, daos, addMember, createProposal, removeMember, addAdmin, connectWallet, fetchDAO } = useApp();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState<'proposals' | 'members'>('proposals');
     const [isPropDialogOpen, setIsPropDialogOpen] = useState(false);
     const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
 
     //Dapp States
     const account = useCurrentAccount();
@@ -31,6 +30,9 @@ export const DaoDetails = () => {
     // New Proposal Form State
     const [pTitle, setPTitle] = useState('');
     const [pDesc, setPDesc] = useState('');
+    const [deadlineDays, setDeadlineDays] = useState("");
+    const [customDays, setCustomDays] = useState("");
+
 
     // New Member ADD Form State
     const [mAddress, setMAddress] = useState('');
@@ -45,11 +47,14 @@ export const DaoDetails = () => {
 
     useEffect(() => {
         //Fetch DAO If not found
-        if (!dao) {
+        if (daos.length > 0 && !dao) {
             fetchDAO(daoId)
         }
     }, [daoId]);
 
+    useEffect(() => {
+        setDao(daos.find(d => d.id === daoId));
+    }, [daos]);
 
 
     if (!loading && !dao) {
@@ -64,12 +69,27 @@ export const DaoDetails = () => {
     }
 
     const handleCreateProposal = async () => {
-        if (!!isConnected) return toast.error("Please Connect Wallet!");
+        if (!isConnected) return toast.error("Please Connect Wallet!");
         if (!pTitle || !pDesc) return toast.error("Fill fields");
-        const tid = toast.loading("Creating Proposal...");
-        await createProposal(daoId!, pTitle, pDesc);
-        toast.dismiss(tid);
-        toast.success("Proposal Live!");
+
+        let days = 0;
+        if (deadlineDays === "custom") {
+            days = Number(customDays);
+        } else {
+            days = Number(deadlineDays);
+        }
+
+        if (!days || days <= 0) {
+            toast.error("Please select a valid deadline");
+            return;
+        }
+
+        // Convert to seconds
+        const deadlineTimestamp = Date.now() + days * 24 * 60 * 60 * 1000;
+
+
+
+        await createProposal(daoId!, pTitle, pDesc, deadlineTimestamp);
         setIsPropDialogOpen(false);
         setPTitle(''); setPDesc('');
     };
@@ -77,10 +97,11 @@ export const DaoDetails = () => {
     const handleAddMember = async () => {
         if (!isConnected) return connectWallet();
         if (!mAddress) return toast.error("Enter address");
-        const tid = toast.loading("Adding Member...");
-        await addMember(daoId!, mAddress, mRole);
-        toast.dismiss(tid);
-        toast.success("Member added");
+        if (mRole === 'ADMIN') {
+            await addAdmin(daoId!, mAddress, 'ADMIN');
+        }else{
+            await addMember(daoId!, mAddress);
+        }
         setIsMemberDialogOpen(false);
         setMAddress('');
     };
@@ -88,18 +109,16 @@ export const DaoDetails = () => {
     const handleJoin = async () => {
         if (!isConnected) return toast("Please Connect Wallet!");
         const tid = toast.loading("Joining...");
-        await joinDao(daoId!);
+        await addMember(daoId!);
         toast.dismiss(tid);
     };
 
-    const handleUpdateRole = async (member: Member) => {
+    const handleUpdateRole = async (member: string) => {
         if (!isConnected) return connectWallet();
         setActiveMenuMember(null);
-        const newRole = member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN';
-        const tid = toast.loading(`Updating role to ${newRole}...`);
-        await updateMemberRole(daoId!, member.address, newRole);
-        toast.dismiss(tid);
-        toast.success(`Role updated to ${newRole}`);
+        const newRole = getUserRole(member) === 'ADMIN' ? 'MEMBER' : 'ADMIN';
+        await addAdmin(daoId!, member, newRole);
+
     };
 
     const handleRemoveMember = async (memberAddress: string) => {
@@ -135,13 +154,13 @@ export const DaoDetails = () => {
             <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/20 p-8 backdrop-blur-xl mb-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
-                        <h1 className="text-3xl font-heading font-bold text-zinc-50 mb-2">{dao?.name}</h1>
+                        <h1 className="text-3xl font-heading font-bold text-zinc-50 mb-2">{dao?.title}</h1>
                         <p className="text-zinc-400 max-w-2xl">{dao?.description}</p>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 text-zinc-300 bg-zinc-900 px-4 py-2 rounded-lg border border-zinc-800">
                             <Users className="h-5 w-5 text-blue-400" />
-                            <span className="font-bold">{dao.daoStates?.members.length || 0}</span>
+                            <span className="font-bold">{dao?.daoStates?.members.length || 0}</span>
                             <span className="text-xs text-zinc-500 uppercase">Members</span>
                         </div>
                         <Button onClick={handleJoin}>Join DAO</Button>
@@ -249,22 +268,18 @@ export const DaoDetails = () => {
                                                                     className="absolute right-0 top-8 z-20 mt-1 w-48 rounded-md border border-zinc-700 bg-zinc-950 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none"
                                                                 >
                                                                     <div className="py-1">
-                                                                        <button
+                                                                        {getUserRole(member) === 'MEMBER' && (<button
                                                                             onClick={() => handleUpdateRole(member)}
                                                                             className="flex w-full items-center px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
                                                                         >
-                                                                            {member.role === 'ADMIN' ? (
-                                                                                <>
-                                                                                    <ShieldOff className="mr-2 h-4 w-4" /> Demote to Member
-                                                                                </>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <Shield className="mr-2 h-4 w-4" /> Promote to Admin
-                                                                                </>
-                                                                            )}
-                                                                        </button>
+
+                                                                            <>
+                                                                                <Shield className="mr-2 h-4 w-4" /> Promote to Admin
+                                                                            </>
+
+                                                                        </button>)}
                                                                         <button
-                                                                            onClick={() => handleRemoveMember(member.address)}
+                                                                            onClick={() => handleRemoveMember(member)}
                                                                             className="flex w-full items-center px-4 py-2 text-sm text-red-400 hover:bg-zinc-800 hover:text-red-300"
                                                                         >
                                                                             <Trash2 className="mr-2 h-4 w-4" /> Remove Member
@@ -288,14 +303,56 @@ export const DaoDetails = () => {
             {/* Dialogs */}
             <Dialog isOpen={isPropDialogOpen} onClose={() => setIsPropDialogOpen(false)} title="Create Proposal">
                 <div className="space-y-4 mt-4">
-                    <Input placeholder="Proposal Title" value={pTitle} onChange={(e) => setPTitle(e.target.value)} />
-                    <Textarea placeholder="Details..." value={pDesc} onChange={(e) => setPDesc(e.target.value)} />
+
+                    {/* Title */}
+                    <Input
+                        placeholder="Proposal Title"
+                        value={pTitle}
+                        onChange={(e) => setPTitle(e.target.value)}
+                    />
+
+                    {/* Description */}
+                    <Textarea
+                        placeholder="Details..."
+                        value={pDesc}
+                        onChange={(e) => setPDesc(e.target.value)}
+                    />
+
+                    {/* Deadline Days Selector */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Proposal Deadline</label>
+
+                        <Select onValueChange={(v) => setDeadlineDays(v)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select duration" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="1">1 Day</SelectItem>
+                                <SelectItem value="7">7 Days</SelectItem>
+                                <SelectItem value="14">14 Days</SelectItem>
+                                <SelectItem value="custom">Custom</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {deadlineDays === "custom" && (
+                            <Input
+                                type="number"
+                                placeholder="Enter number of days"
+                                value={customDays}
+                                onChange={(e) => setCustomDays(e.target.value)}
+                            />
+                        )}
+                    </div>
+
+                    {/* Submit Buttons */}
                     <div className="flex justify-end gap-2">
                         <Button variant="ghost" onClick={() => setIsPropDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleCreateProposal}>Create</Button>
                     </div>
                 </div>
             </Dialog>
+
 
             <Dialog isOpen={isMemberDialogOpen} onClose={() => setIsMemberDialogOpen(false)} title="Add New Member">
                 <div className="space-y-4 mt-4">

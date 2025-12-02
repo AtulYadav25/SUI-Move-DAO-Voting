@@ -13,7 +13,7 @@ interface DaoCardProps {
 
 export const DaoCard: React.FC<DaoCardProps> = ({ dao }) => {
   const navigate = useNavigate();
-  const { joinDao } = useApp();
+  const { addMember } = useApp();
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -23,7 +23,7 @@ export const DaoCard: React.FC<DaoCardProps> = ({ dao }) => {
 
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await joinDao(dao.id);
+    await addMember(dao.id);
   }
 
   return (

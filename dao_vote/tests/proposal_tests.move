@@ -171,11 +171,10 @@ fun test_vote_proposal() {
     let newMember = @0xC;
     test_scenario::next_tx(&mut scenario, newMember);
     let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
-    let ctx5 = test_scenario::ctx(&mut scenario);
 
-    dao::join_dao(
+    dao::add_member(
         &mut dao_object,
-        ctx5,
+        newMember
     );
 
     test_scenario::return_shared(dao_object);

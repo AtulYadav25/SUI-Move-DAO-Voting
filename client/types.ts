@@ -14,7 +14,7 @@ export interface Proposal {
   no: number;
   deadline: number; // timestamp
   isClosed: boolean;
-  userVote?: 'yes' | 'no'; // Local state for user's vote
+  voters: string[];
 }
 
 export interface DAO {
@@ -26,7 +26,7 @@ export interface DAO {
 
 export interface DAOStates {
   members: string[],
-  proposals: string[],
+  proposals: Proposal[],
   admins: string[],
 }
 

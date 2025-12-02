@@ -10,8 +10,7 @@ import { motion } from 'framer-motion';
 
 export const Home = () => {
   const navigate = useNavigate();
-  const { daos } = useApp();
-  const [loading, setLoading] = useState(false);
+  const { daos, loading } = useApp();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
 

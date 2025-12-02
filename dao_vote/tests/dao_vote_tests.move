@@ -53,7 +53,7 @@ fun test_create_dao() {
 }
 
 #[test]
-fun test_add_and_remove_admin() {
+fun test_add_and_remove_member() {
     let owner = @0xA;
 
     let mut scenario = test_scenario::begin(owner);
@@ -107,7 +107,7 @@ fun test_add_and_remove_admin() {
     let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
     let daoCap_object = test_scenario::take_from_address<DAOCap>(&scenario, owner);
 
-    dao::remove_admin(
+    dao::remove_member(
         &mut dao_object,
         &daoCap_object,
         newAdmin,
@@ -169,7 +169,7 @@ fun test_transfer_dao_ownership() {
 }
 
 #[test]
-fun test_join_dao() {
+fun test_add_member() {
     let owner = @0xA;
 
     let mut scenario = test_scenario::begin(owner);
@@ -201,11 +201,10 @@ fun test_join_dao() {
     test_scenario::next_tx(&mut scenario, new_member);
 
     let mut dao_object = test_scenario::take_shared<DAO>(&scenario);
-    let ctx2 = test_scenario::ctx(&mut scenario);
 
-    dao::join_dao(
+    dao::add_member(
         &mut dao_object,
-        ctx2,
+        new_member
     );
 
     // Return objects
