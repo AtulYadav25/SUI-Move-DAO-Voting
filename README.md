@@ -60,9 +60,13 @@ If you only want to run the frontend and interact with an already deployed contr
 Use the following values in your `.env` file:
 
 ```
-VITE_DAO_LIST_ID = 0x1ae2bc704e6b9293a66d16fa5cc87999dd0f7b7d1e6a892a444c068e4cbfc3b6
+VITE_DAO_LIST_ID = 0x6dbaf95cff4c53a8896701fe75dbec82dec9aa0daa495f1e92e2a5f50e8ff9d1
 
-VITE_SMART_CONTRACT_PACKAGE_ID = 0x58b2d96ea147c194f60a506ec0751a1043ec0947c2a1c24445f05f8ff773b01f
+VITE_SMART_CONTRACT_PACKAGE_ID = 0x3cf39514ac503ecbbfebafa8e1994092190d8e586ac2d69503e76773d9224282
+
+VITE_DAO_CAP_TYPE = 0x3cf39514ac503ecbbfebafa8e1994092190d8e586ac2d69503e76773d9224282::dao::DAOCap
+
+VITE_ADMIN_CAP_TYPE = 0x3cf39514ac503ecbbfebafa8e1994092190d8e586ac2d69503e76773d9224282::dao::ADMINCap
 ```
 
 Replace them with your contract values if you deployed your own.
